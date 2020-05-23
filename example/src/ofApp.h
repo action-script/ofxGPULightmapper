@@ -13,9 +13,13 @@ class ofApp : public ofBaseApp{
 
 		void keyPressed(int key);
 
-        ofxGPULightmapper lighmapper;
+        ofxGPULightmapper lightmapper;
         int sampleCount = 0;
 
-        ofMesh mesh;
         ofEasyCam cam;
+
+        // ply models
+        ofMesh meshMonkey, meshPlane, meshTube, meshWall;
+        // lightmaps
+        ofFbo fboMonkey, fboPlane, fboTube, fboWall;
 };

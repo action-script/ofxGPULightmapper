@@ -2,17 +2,23 @@
 
 //--------------------------------------------------------------
 void ofApp::setup() {
-    ofDisableArbTex(); // user TEXTURE_2D instead RECTANGLE [0-1] instead of px
-
-    bool success = lighmapper.setup();
+    bool success = lightmapper.setup();
     if (success) ofLog() << "Lightmapper ready";
+
+    meshMonkey.load("monkey.ply");
+    meshPlane.load("plane.ply");
+    meshTube.load("tube.ply");
+    meshWall.load("wall.ply");
+
+    lightmapper.allocateFBO(fboMonkey);
+    lightmapper.allocateFBO(fboPlane, {800,800});
+    lightmapper.allocateFBO(fboTube);
+    lightmapper.allocateFBO(fboWall, {500,500});
 
     // scene
     cam.setDistance(3.0f);
     cam.setNearClip(0.01f);
     cam.setFarClip(20.0f);
-
-    mesh.load("monkey.ply");
 }
 
 //--------------------------------------------------------------
@@ -34,21 +40,28 @@ void ofApp::draw() {
     light.setPosition(lightDir);
     light.lookAt(glm::vec3(0,0,0));
 
-    lighmapper.begin(light, 10, 0.01, 10);
+    lightmapper.begin(light, 10, 0.01, 10);
     {
         // render scene
-        mesh.draw();
+        meshMonkey.draw();
+        meshPlane.draw();
+        meshTube.draw();
+        meshWall.draw();
     }
-    lighmapper.end();
+    lightmapper.end();
 
-    lighmapper.beginBake(sampleCount);
-    {
-        // pass model and geometry
-        ofPushMatrix();
-        mesh.draw();
-        ofPopMatrix();
-    }
-    lighmapper.endBake();
+    lightmapper.beginBake(fboMonkey, sampleCount);
+    meshMonkey.draw();
+    lightmapper.endBake(fboMonkey);
+    lightmapper.beginBake(fboPlane, sampleCount);
+    meshPlane.draw();
+    lightmapper.endBake(fboPlane);
+    lightmapper.beginBake(fboTube, sampleCount);
+    meshTube.draw();
+    lightmapper.endBake(fboTube);
+    lightmapper.beginBake(fboWall, sampleCount);
+    meshWall.draw();
+    lightmapper.endBake(fboWall);
 
 
     // render scene
@@ -57,16 +70,31 @@ void ofApp::draw() {
     cam.begin();
     {
         ofPushMatrix();
-        lighmapper.getLightmapTexture().bind();
-        mesh.draw();
-        lighmapper.getLightmapTexture().unbind();
+        fboMonkey.getTextureReference().bind();
+        meshMonkey.draw();
+        fboMonkey.getTextureReference().unbind();
+
+        fboPlane.getTextureReference().bind();
+        meshPlane.draw();
+        fboPlane.getTextureReference().unbind();
+        
+        fboTube.getTextureReference().bind();
+        meshTube.draw();
+        fboTube.getTextureReference().unbind();
+        
+        fboWall.getTextureReference().bind();
+        meshWall.draw();
+        fboWall.getTextureReference().unbind();
         ofPopMatrix();
     }
     cam.end();
 
     ofDisableDepthTest();
-    lighmapper.getDepthTexture().draw(0,0, 300, 300);
-    lighmapper.getLightmapTexture().draw(300, 0, 300, 300);
+    //lightmapper.getDepthTexture().draw(0,0, 300, 300);
+    fboMonkey.draw(0, 0, 200, 200);
+    fboPlane.draw(200, 0, 200, 200);
+    fboTube.draw(0, 200, 200, 200);
+    fboWall.draw(200, 200, 200, 200);
 
     sampleCount++;
 }

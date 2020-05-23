@@ -1,57 +1,8 @@
 #include "ofxGPULightmapper.h"
 
 bool ofxGPULightmapper::setup() {
-    // set up depthFBO
-    ofFbo::Settings depthFboSettings;
-
-    depthFboSettings.depthStencilAsTexture = true;
-    depthFboSettings.depthStencilInternalFormat = GL_DEPTH_COMPONENT32;
-    depthFboSettings.width = 1024;
-    depthFboSettings.height = 1024;
-    depthFboSettings.minFilter = GL_NEAREST;
-    depthFboSettings.maxFilter = GL_NEAREST;
-    depthFboSettings.numColorbuffers = 0;
-    depthFboSettings.textureTarget = GL_TEXTURE_2D;
-    depthFboSettings.useDepth = true;
-    depthFboSettings.useStencil = false;
-    depthFboSettings.wrapModeHorizontal = GL_CLAMP_TO_EDGE;
-    depthFboSettings.wrapModeVertical = GL_CLAMP_TO_EDGE;
-    depthFBO.allocate(depthFboSettings);
-    depthFBO.getDepthTexture().setRGToRGBASwizzles(true);
-
-    // allow depth texture to compare in glsl
-    depthFBO.getDepthTexture().bind();
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
-    depthFBO.getDepthTexture().unbind();
-
-
-    // set up lightmapFBO
-    //ofFbo::Settings lightFboSettings;
-/*
- *
- *    //lightFboSettings.depthStencilAsTexture = false;
- *    lightFboSettings.depthStencilInternalFormat = GL_RGBA32F_ARB;
- *    lightFboSettings.width = 1024;
- *    lightFboSettings.height = 1024;
- *    //lightFboSettings.minFilter = GL_NEAREST;
- *    //lightFboSettings.maxFilter = GL_NEAREST;
- *    //lightFboSettings.minFilter = GL_LINEAR;
- *    //lightFboSettings.maxFilter = GL_LINEAR;
- *    //lightFboSettings.numColorbuffers = 2;
- *    lightFboSettings.textureTarget = GL_TEXTURE_2D;
- *    lightFboSettings.useDepth = false;
- *    lightFboSettings.useStencil = false;
- *    //lightFboSettings.numSamples = 0;
- *    lightFboSettings.wrapModeHorizontal = GL_CLAMP_TO_EDGE;
- *    lightFboSettings.wrapModeVertical = GL_CLAMP_TO_EDGE;
- *    lightmapFBO.allocate(lightFboSettings);
- *
- */
-
-    lightmapFBO.allocate(1024, 1024, GL_RGBA32F_ARB, 8);
-    //lightmapFBO.allocate(900, 900, GL_RGBA32F_ARB);
-
+    // allocate depth FBO
+    allocatFBO(depthFBO, FBO_DEPTH);
 
     // compile depth shaders
     bool success;
@@ -210,14 +161,14 @@ void ofxGPULightmapper::end() {
     ofPopView(); // pop at the end to prevent trigger update matrix stack
 }
 
-void ofxGPULightmapper::beginBake(int sampleCount) {
+void ofxGPULightmapper::beginBake(ofFbo& fbo, int sampleCount) {
     // render shadowMap into texture space
     ofDisableDepthTest();
 
     // begin lightmap shader and FBO
     lightmapShader.begin();
     ofEnableBlendMode(OF_BLENDMODE_ALPHA);
-    lightmapFBO.begin();
+    fbo.begin();
 
     //glClearColor(0,0,0,0);
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -230,13 +181,35 @@ void ofxGPULightmapper::beginBake(int sampleCount) {
     lightmapShader.setUniform3f("light", this->lastLightPos);
 
     lightmapShader.setUniform1f("sampleCount", sampleCount);
-    lightmapShader.setUniform1f("texSize", lightmapFBO.getWidth());
+    lightmapShader.setUniform1f("texSize", fbo.getWidth());
     lightmapShader.setUniform1f("shadow_bias", this->shadow_bias);
 }
 
-void ofxGPULightmapper::endBake() {
-    lightmapFBO.end();
+void ofxGPULightmapper::endBake(ofFbo& fbo) {
+    fbo.end();
     ofDisableBlendMode();
     lightmapShader.end();
 }
 
+void ofxGPULightmapper::allocateFBO(ofFbo& fbo, glm::vec2 size) {
+    lightFboSettings.width  = size.x;
+    lightFboSettings.height = size.y;
+    allocatFBO(fbo, FBO_LIGHT);
+}
+
+void ofxGPULightmapper::allocatFBO(ofFbo& fbo, FBO_TYPE type) {
+    switch (type) {
+        case FBO_TYPE::FBO_DEPTH:
+            fbo.allocate(depthFboSettings);
+            fbo.getDepthTexture().setRGToRGBASwizzles(true);
+            // allow depth texture to compare in glsl
+            fbo.getDepthTexture().bind();
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+            fbo.getDepthTexture().unbind();
+            break;
+        case FBO_TYPE::FBO_LIGHT:
+            fbo.allocate(this->lightFboSettings);
+            break;
+    }
+}
