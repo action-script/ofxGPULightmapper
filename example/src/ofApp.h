@@ -20,6 +20,8 @@ class ofApp : public ofBaseApp{
 
         // ply models
         ofMesh meshMonkey, meshPlane, meshTube, meshWall;
+        // model transformatins
+        ofNode nodeMonkey, nodePlane, nodeTube, nodeWall;
         // lightmaps
         ofFbo fboMonkey, fboPlane, fboTube, fboWall;
 };

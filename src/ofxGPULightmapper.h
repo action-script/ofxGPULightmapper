@@ -44,18 +44,24 @@ class ofxGPULightmapper {
             lightFboSettings.wrapModeVertical = GL_CLAMP_TO_EDGE;
         }
         bool setup();
+        bool setup(function<void()> scene);
+
+        // easy API
+        void updateShadowMap(ofNode & light, glm::vec3 origin = {0,0,0}, float softness = 0.3,
+                float fustrumSize = 10, float nearClip = 0.01, float farClip = 100);
+        void bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount);
  
         // shadow mapping
-        void begin(ofNode & light, float fustrumSize = 10, float nearClip = 0.01, float farClip = 100);
-        void end();
+        void beginShadowMap(ofNode & light, float fustrumSize = 10, float nearClip = 0.01, float farClip = 100);
+        void endShadowMap();
 
         // light packing
         void allocateFBO(ofFbo& fbo, glm::vec2 size = {1024, 1024});
         void beginBake(ofFbo& fbo, int sampleCount);
         void endBake(ofFbo& fbo);
 
-        const ofTexture& getDepthTexture() const { return depthFBO.getDepthTexture(); }
-        ofTexture& getDepthTexture() { return depthFBO.getDepthTexture(); }
+        const ofTexture& getDepthTexture(unsigned int index = 0) const { return depthFBO[index].getDepthTexture(); }
+        ofTexture& getDepthTexture(unsigned int index = 0) { return depthFBO[index].getDepthTexture(); }
 
     private:
         void allocatFBO(ofFbo& fbo, FBO_TYPE type);
@@ -63,11 +69,14 @@ class ofxGPULightmapper {
         ofFbo::Settings depthFboSettings;
         ofFbo::Settings lightFboSettings;
 
-        ofFbo depthFBO;     // scene depth
-        //ofFbo lightmapFBO;  // texture space projected shadow
+        std::vector<ofFbo> depthFBO;   // scene depth
+        unsigned int fboIndex = 0;
 
         ofShader depthShader;       // depth test
         ofShader lightmapShader;    // shadow mapping
+
+        // conservative rasterization.
+        float geometry_dilation = 2;
 
         float shadow_bias = 0.003f;
         glm::mat4 bias = glm::mat4(
@@ -76,7 +85,9 @@ class ofxGPULightmapper {
             0.0, 0.0, 0.5, 0.0,
             0.5, 0.5, 0.5, 1.0);
 
-        glm::mat4 lastBiasedMatrix;
-        glm::vec3 lastLightPos;
+        std::vector<glm::mat4> lastBiasedMatrix;
+        std::vector<glm::vec3> lastLightPos;
 
+        // render scene function
+        function<void()> scene;
 };
