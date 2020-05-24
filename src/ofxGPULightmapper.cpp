@@ -1,26 +1,25 @@
 #include "ofxGPULightmapper.h"
 
-bool ofxGPULightmapper::setup(function<void()> scene) {
+bool ofxGPULightmapper::setup(function<void()> scene, unsigned int numPasses) {
     this->scene = scene;
+    this->numPasses = numPasses * 2;
     return setup();
 }
 
 bool ofxGPULightmapper::setup() {
-    // allocate depth FBO
-    ofFbo depthFBO_0, depthFBO_1;
-    allocatFBO(depthFBO_0, FBO_DEPTH);
-    allocatFBO(depthFBO_1, FBO_DEPTH);
-    depthFBO.push_back(depthFBO_0);
-    depthFBO.push_back(depthFBO_1);
+    for (int i = 0; i < numPasses; i++) {
+        // allocate depth FBOs
+        depthFBO.emplace_back(new ofFbo);
+        allocatFBO(*depthFBO[i].get(), FBO_DEPTH);
 
-    // set up passes vector
-    glm::mat4 bm;
-    lastBiasedMatrix.push_back(bm);
-    lastBiasedMatrix.push_back(bm);
-    glm::vec3 lpos;
-    lastLightPos.push_back(lpos);
-    lastLightPos.push_back(lpos);
-    this->fboIndex = 0;
+        // set up passes vector
+        glm::mat4 bm;
+        lastBiasedMatrix.push_back(bm);
+        glm::vec3 lpos;
+        lastLightPos.push_back(lpos);
+    }
+
+    this->passIndex = 0;
 
     // compile depth shaders
     bool success;
@@ -152,12 +151,12 @@ void ofxGPULightmapper::beginShadowMap(ofNode& light, float fustrumSize, float n
     auto view   = glm::inverse(light.getGlobalTransformMatrix());
     auto viewProjection = ortho * view;
 
-    this->lastBiasedMatrix[fboIndex] = this->bias * viewProjection;
-    this->lastLightPos[fboIndex] = light.getPosition();
+    this->lastBiasedMatrix[passIndex] = this->bias * viewProjection;
+    this->lastLightPos[passIndex] = light.getPosition();
 
     // begin depth render FBO and shader
     depthShader.begin();
-    depthFBO[fboIndex].begin(OF_FBOMODE_NODEFAULTS);
+    depthFBO[passIndex]->begin(OF_FBOMODE_NODEFAULTS);
 
     ofEnableDepthTest();
 
@@ -169,13 +168,13 @@ void ofxGPULightmapper::beginShadowMap(ofNode& light, float fustrumSize, float n
     ofSetMatrixMode(OF_MATRIX_MODELVIEW);
     ofLoadViewMatrix(view);
 
-    ofViewport(ofRectangle(1,0,depthFBO[fboIndex].getWidth(),depthFBO[fboIndex].getHeight()));
+    ofViewport(ofRectangle(1,0,depthFBO[passIndex]->getWidth(),depthFBO[passIndex]->getHeight()));
     ofClear(0);
 }
 
 void ofxGPULightmapper::endShadowMap() {
     // end depth render FBO and shader
-    depthFBO[fboIndex].end();
+    depthFBO[passIndex]->end();
     depthShader.end();
     ofPopView(); // pop at the end to prevent trigger update matrix stack
 }
@@ -193,11 +192,11 @@ void ofxGPULightmapper::beginBake(ofFbo& fbo, int sampleCount) {
     //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // bind shadow map to texture
-    lightmapShader.setUniformTexture("shadowMap", this->depthFBO[fboIndex].getDepthTexture(), 0);
+    lightmapShader.setUniformTexture("shadowMap", this->depthFBO[passIndex]->getDepthTexture(), 0);
     // pass the light projection view
-    lightmapShader.setUniformMatrix4f("shadowViewProjectionMatrix", this->lastBiasedMatrix[fboIndex]);
+    lightmapShader.setUniformMatrix4f("shadowViewProjectionMatrix", this->lastBiasedMatrix[passIndex]);
     // pass the light position
-    lightmapShader.setUniform3f("light", this->lastLightPos[fboIndex]);
+    lightmapShader.setUniform3f("light", this->lastLightPos[passIndex]);
 
     lightmapShader.setUniform1f("sampleCount", sampleCount);
     lightmapShader.setUniform1f("texSize", fbo.getWidth());
@@ -237,31 +236,32 @@ void ofxGPULightmapper::allocatFBO(ofFbo& fbo, FBO_TYPE type) {
 
 void ofxGPULightmapper::updateShadowMap(ofNode & light, glm::vec3 origin, float softness, 
     float fustrumSize, float nearClip, float farClip) {
-    for (int i = 0; i < depthFBO.size();  i++) {
+    for (int i = 0; i < numPasses; i++) {
         ofNode nlight;
         glm::vec3 lightDir = glm::sphericalRand(farClip/2.f);
         if (i % 2 == 0)
             lightDir = light.getPosition() + lightDir*(softness * (1+ofRandomf())/2.0);
 
+        if (lightDir.y < 0) lightDir.y = -lightDir.y;
         nlight.setPosition(lightDir + origin);
         nlight.lookAt(origin);
 
-        this->fboIndex = i;
+        this->passIndex = i;
         beginShadowMap(nlight, fustrumSize, nearClip, farClip);
         scene();
         endShadowMap();
     }
-    this->fboIndex = 0;
+    this->passIndex = 0;
 }
 
 void ofxGPULightmapper::bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount) {
-    for (int i = 0; i < depthFBO.size();  i++) {
-        this->fboIndex = i;
-        beginBake(fbo, sampleCount*2+i);
+    for (int i = 0; i < numPasses; i++) {
+        this->passIndex = i;
+        beginBake(fbo, sampleCount*this->numPasses+i);
         node.transformGL();
         mesh.draw();
         node.restoreTransformGL();
         endBake(fbo);
     }
-    this->fboIndex = 0;
+    this->passIndex = 0;
 }

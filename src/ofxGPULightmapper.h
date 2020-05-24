@@ -44,7 +44,7 @@ class ofxGPULightmapper {
             lightFboSettings.wrapModeVertical = GL_CLAMP_TO_EDGE;
         }
         bool setup();
-        bool setup(function<void()> scene);
+        bool setup(function<void()> scene, unsigned int numPasses = 1);
 
         // easy API
         void updateShadowMap(ofNode & light, glm::vec3 origin = {0,0,0}, float softness = 0.3,
@@ -60,8 +60,8 @@ class ofxGPULightmapper {
         void beginBake(ofFbo& fbo, int sampleCount);
         void endBake(ofFbo& fbo);
 
-        const ofTexture& getDepthTexture(unsigned int index = 0) const { return depthFBO[index].getDepthTexture(); }
-        ofTexture& getDepthTexture(unsigned int index = 0) { return depthFBO[index].getDepthTexture(); }
+        const ofTexture& getDepthTexture(unsigned int index = 0) const { return depthFBO[index]->getDepthTexture(); }
+        ofTexture& getDepthTexture(unsigned int index = 0) { return depthFBO[index]->getDepthTexture(); }
 
     private:
         void allocatFBO(ofFbo& fbo, FBO_TYPE type);
@@ -69,8 +69,9 @@ class ofxGPULightmapper {
         ofFbo::Settings depthFboSettings;
         ofFbo::Settings lightFboSettings;
 
-        std::vector<ofFbo> depthFBO;   // scene depth
-        unsigned int fboIndex = 0;
+        std::vector<std::unique_ptr<ofFbo>> depthFBO;   // scene depth
+        unsigned int passIndex = 0;
+        unsigned int numPasses = 1;
 
         ofShader depthShader;       // depth test
         ofShader lightmapShader;    // shadow mapping

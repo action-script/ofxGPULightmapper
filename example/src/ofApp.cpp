@@ -7,7 +7,6 @@ void ofApp::setup() {
     bool success = lightmapper.setup(scene);
     if (success) ofLog() << "Lightmapper ready";
 
-
     // load models
     meshMonkey.load("monkey.ply");
     meshPlane.load("plane.ply");
@@ -38,12 +37,7 @@ void ofApp::setup() {
 
 //--------------------------------------------------------------
 void ofApp::update(){
-}
-
-//--------------------------------------------------------------
-void ofApp::draw() {
-    ofEnableDepthTest();
-
+    // bake
     ofLight light; // also works with ofNode
     light.setPosition(glm::vec3(-2.52348, 2.79526, 7.84836));
     light.lookAt(glm::vec3(0,0,0));
@@ -56,7 +50,10 @@ void ofApp::draw() {
     lightmapper.bake(meshPlane, fboPlane, nodePlane, sampleCount);
     lightmapper.bake(meshTube, fboTube, nodeTube, sampleCount);
     lightmapper.bake(meshWall, fboWall, nodeWall, sampleCount);
+}
 
+//--------------------------------------------------------------
+void ofApp::draw() {
     // forward render scene from camera
     ofBackground(30);
     ofEnableDepthTest();
