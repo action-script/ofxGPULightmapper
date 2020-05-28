@@ -19,9 +19,13 @@ class ofApp : public ofBaseApp{
         ofEasyCam cam;
 
         // ply models
-        ofMesh meshMonkey, meshPlane, meshTube, meshWall;
+        ofVboMesh meshMonkey, meshPlane, meshTube, meshWall;
         // model transformatins
         ofNode nodeMonkey, nodePlane, nodeTube, nodeWall;
         // lightmaps
         ofFbo fboMonkey, fboPlane, fboTube, fboWall;
+
+        // material
+        ofShader material;
+        ofImage texture;
 };

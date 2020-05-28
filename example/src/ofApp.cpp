@@ -23,11 +23,22 @@ void ofApp::setup() {
     nodeWall.setScale({1,0.8,1});
     nodeWall.panDeg(30);
 
+    // generate lightmap coords for the model
+    lightmapper.lightmapPack(meshMonkey);
+    //lightmapper.lightmapPack(meshPlane, {800,800});
+    lightmapper.lightmapPack(meshTube);
+    lightmapper.lightmapPack(meshWall, {500,500});
+
     // setup lightmaps
     lightmapper.allocateFBO(fboMonkey);
     lightmapper.allocateFBO(fboPlane, {800,800});
     lightmapper.allocateFBO(fboTube);
     lightmapper.allocateFBO(fboWall, {500,500});
+
+    // material
+    ofDisableArbTex();
+    material.load("phong");
+    texture.load("UVtexture.png");
 
     // camera
     cam.setDistance(3.0f);
@@ -65,12 +76,13 @@ void ofApp::draw() {
 
     // debug textures
     ofDisableDepthTest();
-    lightmapper.getDepthTexture().draw(ofGetWidth()-300,0, 300, 300);
-    lightmapper.getDepthTexture(1).draw(ofGetWidth()-300,300, 300, 300);
-    fboMonkey.draw(0, 0, 200, 200);
-    fboPlane.draw(200, 0, 200, 200);
-    fboTube.draw(0, 200, 200, 200);
-    fboWall.draw(200, 200, 200, 200);
+    //lightmapper.getDepthTexture().draw(ofGetWidth()-300,0, 300, 300);
+    //lightmapper.getDepthTexture(1).draw(ofGetWidth()-300,300, 300, 300);
+    int debugSize = 150;
+    fboMonkey.draw(0, 0, debugSize, debugSize);
+    fboPlane.draw(debugSize, 0, debugSize, debugSize);
+    fboTube.draw(0, debugSize, debugSize, debugSize);
+    fboWall.draw(debugSize, debugSize, debugSize, debugSize);
 
     sampleCount++;
 }
@@ -80,9 +92,11 @@ void ofApp::renderScene() {
     // render scene
     
     nodeMonkey.transformGL();
-    fboMonkey.getTextureReference().bind();
+    material.begin();
+    material.setUniformTexture("tex0", texture, 0);
+    material.setUniformTexture("tex1", fboMonkey.getTextureReference(), 1);
     meshMonkey.draw();
-    fboMonkey.getTextureReference().unbind();
+    material.end();
     nodeMonkey.restoreTransformGL();
 
     nodePlane.transformGL();
@@ -92,15 +106,23 @@ void ofApp::renderScene() {
     nodePlane.restoreTransformGL();
     
     nodeTube.transformGL();
-    fboTube.getTextureReference().bind();
+    material.begin();
+    material.setUniformTexture("tex0", texture, 0);
+    material.setUniformTexture("tex1", fboTube.getTextureReference(), 1);
+    //fboTube.getTextureReference().bind();
     meshTube.draw();
-    fboTube.getTextureReference().unbind();
+    //fboTube.getTextureReference().unbind();
+    material.end();
     nodeTube.restoreTransformGL();
     
     nodeWall.transformGL();
-    fboWall.getTextureReference().bind();
+    material.begin();
+    material.setUniformTexture("tex0", texture, 0);
+    material.setUniformTexture("tex1", fboWall.getTextureReference(), 1);
+    //fboWall.getTextureReference().bind();
     meshWall.draw();
-    fboWall.getTextureReference().unbind();
+    //fboWall.getTextureReference().unbind();
+    material.end();
     nodeWall.restoreTransformGL();
 }
 //--------------------------------------------------------------

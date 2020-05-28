@@ -2,15 +2,7 @@
 
 #include "ofMain.h"
 
-namespace gpulm
-{
-    enum FBO_TYPE {
-        FBO_DEPTH,
-        FBO_LIGHT
-    };
-}
-
-using namespace gpulm;
+#include "trianglepacker/trianglepacker.h"
 
 class ofxGPULightmapper {
     public:
@@ -49,7 +41,8 @@ class ofxGPULightmapper {
         // easy API
         void updateShadowMap(ofNode & light, glm::vec3 origin = {0,0,0}, float softness = 0.3,
                 float fustrumSize = 10, float nearClip = 0.01, float farClip = 100);
-        void bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount);
+        void bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount, bool usingPackedTriangles = false);
+        void bake(ofVboMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount);
  
         // shadow mapping
         void beginShadowMap(ofNode & light, float fustrumSize = 10, float nearClip = 0.01, float farClip = 100);
@@ -57,13 +50,24 @@ class ofxGPULightmapper {
 
         // light packing
         void allocateFBO(ofFbo& fbo, glm::vec2 size = {1024, 1024});
-        void beginBake(ofFbo& fbo, int sampleCount);
+        void beginBake(ofFbo& fbo, int sampleCount, bool usingPackedTriangles = false);
         void endBake(ofFbo& fbo);
+
+        // lightmap pack
+        bool lightmapPack(ofVboMesh& mesh, glm::vec2 size = {1024, 1024});
 
         const ofTexture& getDepthTexture(unsigned int index = 0) const { return depthFBO[index]->getDepthTexture(); }
         ofTexture& getDepthTexture(unsigned int index = 0) { return depthFBO[index]->getDepthTexture(); }
 
+
     private:
+        enum FBO_TYPE {
+            FBO_DEPTH,
+            FBO_LIGHT
+        };
+
+        GLuint LM_TEXCOORDS_LOCATION = 9;
+
         void allocatFBO(ofFbo& fbo, FBO_TYPE type);
 
         ofFbo::Settings depthFboSettings;
@@ -91,4 +95,5 @@ class ofxGPULightmapper {
 
         // render scene function
         function<void()> scene;
+
 };

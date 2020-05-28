@@ -1,0 +1,3 @@
+[submodule "libs/trianglepacker"]
+	path = libs/trianglepacker
+	url = git@github.com:ands/trianglepacker.git

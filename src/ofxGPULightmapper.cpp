@@ -1,5 +1,9 @@
 #include "ofxGPULightmapper.h"
 
+#define TRIANGLEPACKER_IMPLEMENTATION
+#define TP_DEBUG_OUTPUT
+#include "trianglepacker/trianglepacker.h"
+
 bool ofxGPULightmapper::setup(function<void()> scene, unsigned int numPasses) {
     this->scene = scene;
     this->numPasses = numPasses * 2;
@@ -46,16 +50,20 @@ bool ofxGPULightmapper::setup() {
 
 
     // compile light packer shader
-    success &= lightmapShader.setupShaderFromSource(GL_VERTEX_SHADER,
-        R"(
-        #version 330
+    std::string lm_vertexshader = R"(#version 330
         uniform mat4 modelViewProjectionMatrix;
         uniform mat4 shadowViewProjectionMatrix;
         uniform mat4 modelMatrix;
         uniform vec3 light; // shadow light position
+        uniform int usingPackedTriangles;
         in vec4 position;
         in vec4 normal;
         in vec2 texcoord;
+    )";
+    // trick to ensure same location through shaders
+    // custom triangle packed UVs
+    lm_vertexshader += "layout (location = "+std::to_string(LM_TEXCOORDS_LOCATION)+") in vec2 t_texcoord;\n";
+    lm_vertexshader += R"(
         out vec4 v_shadowPos;
         out vec3 v_normal;
         out vec2 v_texcoord;
@@ -64,11 +72,11 @@ bool ofxGPULightmapper::setup() {
             vec3 pos = position.xyz + normalize(cross(normal.xyz, cross(normal.xyz, light))) * 0.02;
             v_shadowPos = shadowViewProjectionMatrix * (modelMatrix * vec4(pos, 1));
             v_normal = normal.xyz;
-            v_texcoord = texcoord;
-            gl_Position = vec4(texcoord * 2.0 - 1.0, 0.0, 1.0);
+            v_texcoord = mix(texcoord, t_texcoord, usingPackedTriangles);
+            gl_Position = vec4(v_texcoord * 2.0 - 1.0, 0.0, 1.0);
         }
-        )"
-    );
+    )";
+    success &= lightmapShader.setupShaderFromSource(GL_VERTEX_SHADER, lm_vertexshader);
     // geometry dilation as conservative rasterization
     success &= lightmapShader.setupShaderFromSource(GL_GEOMETRY_SHADER_EXT,
         R"(
@@ -179,7 +187,7 @@ void ofxGPULightmapper::endShadowMap() {
     ofPopView(); // pop at the end to prevent trigger update matrix stack
 }
 
-void ofxGPULightmapper::beginBake(ofFbo& fbo, int sampleCount) {
+void ofxGPULightmapper::beginBake(ofFbo& fbo, int sampleCount, bool usingPackedTriangles) {
     // render shadowMap into texture space
     ofDisableDepthTest();
 
@@ -197,6 +205,8 @@ void ofxGPULightmapper::beginBake(ofFbo& fbo, int sampleCount) {
     lightmapShader.setUniformMatrix4f("shadowViewProjectionMatrix", this->lastBiasedMatrix[passIndex]);
     // pass the light position
     lightmapShader.setUniform3f("light", this->lastLightPos[passIndex]);
+    // define if using packed triangle UVs
+    lightmapShader.setUniform1i("usingPackedTriangles", usingPackedTriangles);
 
     lightmapShader.setUniform1f("sampleCount", sampleCount);
     lightmapShader.setUniform1f("texSize", fbo.getWidth());
@@ -254,14 +264,75 @@ void ofxGPULightmapper::updateShadowMap(ofNode & light, glm::vec3 origin, float 
     this->passIndex = 0;
 }
 
-void ofxGPULightmapper::bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount) {
+void ofxGPULightmapper::bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount, bool usingPackedTriangles) {
     for (int i = 0; i < numPasses; i++) {
         this->passIndex = i;
-        beginBake(fbo, sampleCount*this->numPasses+i);
+        beginBake(fbo, sampleCount*this->numPasses+i, usingPackedTriangles);
         node.transformGL();
         mesh.draw();
         node.restoreTransformGL();
         endBake(fbo);
     }
     this->passIndex = 0;
+}
+
+// FIXME: better way to set usingPackedTriangles???
+void ofxGPULightmapper::bake(ofVboMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount) {
+    bool usingPackedTriangles = mesh.getVbo().hasAttribute(this->LM_TEXCOORDS_LOCATION);
+    this->bake(mesh, fbo, node, sampleCount, usingPackedTriangles);
+}
+
+// pack geometry into UV triangles. Generates coords for a LighMap texture.
+// Only works if has individual edges. this why getUniqueFaces()
+// If not, the mesh would have shared edges pointing to individual geometry on texture coordinate.
+bool ofxGPULightmapper::lightmapPack(ofVboMesh& mesh, glm::vec2 size) {
+    // Re-assign mesh data as independent indices. Not shared vertex anmore.
+    mesh.setFromTriangles(mesh.getUniqueFaces());
+
+    int vertexCount = mesh.getNumVertices();
+    float scale = 0.0f;
+
+    std::vector<glm::vec3> triangles;
+    const float* positions;
+    int uvCount;
+    if (mesh.hasIndices()) {
+        auto vertices = mesh.getVertices();
+        for (auto& i : mesh.getIndices()) {
+            //ofLog() << "i: " << i << " | v: " <<vertices[i];
+            triangles.push_back(vertices[i]);
+        }
+
+        positions = (const float*)triangles.data();
+        uvCount = triangles.size();
+
+    } else {
+        positions = (const float*)mesh.getVerticesPointer();
+        uvCount = vertexCount;
+    }
+
+    // allocate UVs
+    std::vector<glm::vec2> UVs;
+    UVs.resize(uvCount);
+
+    //ofLog() << "UVCount: " << uvCount;
+
+    bool success = tpPackIntoRect(
+        // mesh (consecutive triangle positions):
+        positions, uvCount,
+        size.x, size.y, 2, 3, // 2,2 broder, spacing
+        glm::value_ptr(UVs[0]), &scale
+    );
+
+    // TODO: set UVs to mesh VBO
+    if (success) {
+        //ofLog() << "success packing.";
+        //for (auto& p : UVs)
+            //ofLog() << p;
+
+        GLint attLoc1 = lightmapShader.getAttributeLocation("t_texcoord"); // located at LM_TEXCOORDS_LOCATION
+        // set custom Vertex Color Data
+        mesh.getVbo().setAttributeData(attLoc1, glm::value_ptr(UVs[0]), 2, uvCount*2, GL_STATIC_DRAW, sizeof(glm::vec2));
+    }
+
+    return success;
 }
