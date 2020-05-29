@@ -1,7 +1,7 @@
 #include "ofxGPULightmapper.h"
 
 #define TRIANGLEPACKER_IMPLEMENTATION
-#define TP_DEBUG_OUTPUT
+//#define TP_DEBUG_OUTPUT
 #include "trianglepacker/trianglepacker.h"
 
 bool ofxGPULightmapper::setup(function<void()> scene, unsigned int numPasses) {
@@ -296,9 +296,9 @@ bool ofxGPULightmapper::lightmapPack(ofVboMesh& mesh, glm::vec2 size) {
     const float* positions;
     int uvCount;
     if (mesh.hasIndices()) {
+        // read vertices as consecutive triangles
         auto vertices = mesh.getVertices();
         for (auto& i : mesh.getIndices()) {
-            //ofLog() << "i: " << i << " | v: " <<vertices[i];
             triangles.push_back(vertices[i]);
         }
 
@@ -314,21 +314,13 @@ bool ofxGPULightmapper::lightmapPack(ofVboMesh& mesh, glm::vec2 size) {
     std::vector<glm::vec2> UVs;
     UVs.resize(uvCount);
 
-    //ofLog() << "UVCount: " << uvCount;
-
     bool success = tpPackIntoRect(
-        // mesh (consecutive triangle positions):
         positions, uvCount,
         size.x, size.y, 2, 3, // 2,2 broder, spacing
         glm::value_ptr(UVs[0]), &scale
     );
 
-    // TODO: set UVs to mesh VBO
     if (success) {
-        //ofLog() << "success packing.";
-        //for (auto& p : UVs)
-            //ofLog() << p;
-
         GLint attLoc1 = lightmapShader.getAttributeLocation("t_texcoord"); // located at LM_TEXCOORDS_LOCATION
         // set custom Vertex Color Data
         mesh.getVbo().setAttributeData(attLoc1, glm::value_ptr(UVs[0]), 2, uvCount*2, GL_STATIC_DRAW, sizeof(glm::vec2));

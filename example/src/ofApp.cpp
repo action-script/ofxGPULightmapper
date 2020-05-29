@@ -76,8 +76,8 @@ void ofApp::draw() {
 
     // debug textures
     ofDisableDepthTest();
-    //lightmapper.getDepthTexture().draw(ofGetWidth()-300,0, 300, 300);
-    //lightmapper.getDepthTexture(1).draw(ofGetWidth()-300,300, 300, 300);
+    lightmapper.getDepthTexture().draw(ofGetWidth()-300,0, 300, 300);
+    lightmapper.getDepthTexture(1).draw(ofGetWidth()-300,300, 300, 300);
     int debugSize = 150;
     fboMonkey.draw(0, 0, debugSize, debugSize);
     fboPlane.draw(debugSize, 0, debugSize, debugSize);
@@ -109,9 +109,7 @@ void ofApp::renderScene() {
     material.begin();
     material.setUniformTexture("tex0", texture, 0);
     material.setUniformTexture("tex1", fboTube.getTextureReference(), 1);
-    //fboTube.getTextureReference().bind();
     meshTube.draw();
-    //fboTube.getTextureReference().unbind();
     material.end();
     nodeTube.restoreTransformGL();
     
@@ -119,9 +117,7 @@ void ofApp::renderScene() {
     material.begin();
     material.setUniformTexture("tex0", texture, 0);
     material.setUniformTexture("tex1", fboWall.getTextureReference(), 1);
-    //fboWall.getTextureReference().bind();
     meshWall.draw();
-    //fboWall.getTextureReference().unbind();
     material.end();
     nodeWall.restoreTransformGL();
 }
