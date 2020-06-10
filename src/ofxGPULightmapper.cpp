@@ -248,7 +248,10 @@ void ofxGPULightmapper::updateShadowMap(ofNode & light, glm::vec3 origin, float 
     float fustrumSize, float nearClip, float farClip) {
     for (int i = 0; i < numPasses; i++) {
         ofNode nlight;
-        glm::vec3 lightDir = glm::sphericalRand(farClip/2.f);
+        auto lad = light.getLookAtDir();
+        auto pos = light.getPosition();
+        float radius = glm::distance(lad, pos);
+        glm::vec3 lightDir = glm::sphericalRand(radius);
         if (i % 2 == 0)
             lightDir = light.getPosition() + lightDir*(softness * (1+ofRandomf())/2.0);
 

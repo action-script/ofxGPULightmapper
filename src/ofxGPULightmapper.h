@@ -59,6 +59,8 @@ class ofxGPULightmapper {
         const ofTexture& getDepthTexture(unsigned int index = 0) const { return depthFBO[index]->getDepthTexture(); }
         ofTexture& getDepthTexture(unsigned int index = 0) { return depthFBO[index]->getDepthTexture(); }
 
+        void setShadowBias(float bias) { this->shadow_bias = bias; }
+
 
     private:
         enum FBO_TYPE {
