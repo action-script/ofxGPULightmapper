@@ -244,6 +244,37 @@ void ofxGPULightmapper::allocatFBO(ofFbo& fbo, FBO_TYPE type) {
     }
 }
 
+void ofxGPULightmapper::updateCachedShadowMap(ofNode & light, int sampleCount, glm::vec3 origin, float softness, 
+    float fustrumSize, float nearClip, float farClip) {
+    for (int i = 0; i < numPasses; i++) {
+        ofNode nlight;
+        auto lad = light.getLookAtDir();
+        auto pos = light.getPosition();
+        float radius = glm::distance(lad, pos);
+
+        int index = sampleCount * numPasses + i;
+        glm::vec3 lightDir;
+        if (index >= random_cache.size()) {
+            lightDir = glm::sphericalRand(radius);
+            if (i % 2 == 0)
+                lightDir = light.getPosition() + lightDir*(softness * (1+ofRandomf())/2.0);
+
+            if (lightDir.y < 0) lightDir.y = -lightDir.y;
+            random_cache.push_back(lightDir);
+        } else
+            lightDir = random_cache[index];
+
+        nlight.setPosition(lightDir + origin);
+        nlight.lookAt(origin);
+
+        this->passIndex = i;
+        beginShadowMap(nlight, fustrumSize, nearClip, farClip);
+        scene();
+        endShadowMap();
+    }
+    this->passIndex = 0;
+}
+
 void ofxGPULightmapper::updateShadowMap(ofNode & light, glm::vec3 origin, float softness, 
     float fustrumSize, float nearClip, float farClip) {
     for (int i = 0; i < numPasses; i++) {

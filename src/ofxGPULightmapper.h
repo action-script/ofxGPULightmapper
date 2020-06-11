@@ -41,6 +41,10 @@ class ofxGPULightmapper {
         // easy API
         void updateShadowMap(ofNode & light, glm::vec3 origin = {0,0,0}, float softness = 0.3,
                 float fustrumSize = 10, float nearClip = 0.01, float farClip = 100);
+
+        void updateCachedShadowMap(ofNode & light, int sampleCount, glm::vec3 origin = {0,0,0}, float softness = 0.3,
+                float fustrumSize = 10, float nearClip = 0.01, float farClip = 100);
+
         void bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount, bool usingPackedTriangles = false);
         void bake(ofVboMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount);
  
@@ -81,6 +85,8 @@ class ofxGPULightmapper {
 
         ofShader depthShader;       // depth test
         ofShader lightmapShader;    // shadow mapping
+
+        std::vector<glm::vec3> random_cache;
 
         // conservative rasterization.
         float geometry_dilation = 2;
