@@ -50,7 +50,8 @@ bool ofxGPULightmapper::setup() {
 
 
     // compile light packer shader
-    std::string lm_vertexshader = R"(#version 330
+    std::string lm_vertexshader = R"(
+        #version 330
         uniform mat4 modelViewProjectionMatrix;
         uniform mat4 shadowViewProjectionMatrix;
         uniform mat4 modelMatrix;
@@ -83,7 +84,8 @@ bool ofxGPULightmapper::setup() {
         #version 150
         #define M_PI 3.1415926535897932384626433832795
         layout (triangles) in;
-        layout (triangle_strip, max_vertices = 3) out;
+        //layout (triangle_strip, max_vertices = 3) out;
+        layout (triangle_strip, max_vertices = 9) out;
         uniform float texSize;
         uniform float dilation;
         in vec4 v_shadowPos[3];
@@ -96,8 +98,16 @@ bool ofxGPULightmapper::setup() {
             bool s = (abs(x) > abs(y));
             return mix(M_PI/2.0 - atan(x,y), atan(y,x), s);
         }
+        void emit(vec4 position, int i) {
+            gl_Position = position;
+            f_shadowPos = v_shadowPos[i];
+            f_normal = v_normal[i];
+            f_texcoord = v_texcoord[i];
+            EmitVertex();
+        }
         void main() {
             float hPixel = (1.0/texSize)*dilation;
+            vec4 vertices[3];
             for (int i = 0; i < 3; i++) {
                 int i0 = i, i1 = (i+1)%3, i2 = (i+2)%3;
                 vec4 lp0 = gl_in[i0].gl_Position;
@@ -109,12 +119,25 @@ bool ofxGPULightmapper::setup() {
                 float angle = atan2(v0.y, v0.x) - atan2(mixed.y, mixed.x);
                 float vlength = abs(hPixel / sin(angle));
                 vec2 offs = mixed * vec2(vlength);
-                gl_Position = vec4(lp1.xy + offs, 0, 1);
-                f_shadowPos = v_shadowPos[i1];
-                f_normal = v_normal[i1];
-                f_texcoord = v_texcoord[i1];
-                EmitVertex();
+                vertices[i1] = vec4(lp1.xy + offs, 0, 1);
             }
+
+            /*
+             *for (int i = 0; i < 3; i++) {
+             *    emit(vertices[i], i);
+             *}
+             */
+
+            emit(gl_in[0].gl_Position, 0); // 0
+            emit(gl_in[1].gl_Position, 1); // 1
+            emit(gl_in[2].gl_Position, 2); // 2
+
+            emit(vertices[2], 2); // 3
+            emit(gl_in[0].gl_Position, 0); // 4
+            emit(vertices[0], 0); // 5
+            emit(gl_in[1].gl_Position, 1); // 6
+            emit(vertices[1], 1); // 7
+            emit(vertices[2], 2); // 8
         }
         )"
     );
@@ -139,6 +162,7 @@ bool ofxGPULightmapper::setup() {
             }
             outputColor = vec4(vec3(shadow), 1.0 / (1.0 + sampleCount));
             //outputColor = vec4(f_texcoord.x, f_texcoord.y, 0.5,1);
+            //outputColor = vec4(0,1,0,1);
         }
         )"
     );
@@ -298,6 +322,7 @@ void ofxGPULightmapper::updateShadowMap(ofNode & light, glm::vec3 origin, float 
     this->passIndex = 0;
 }
 
+// TODO: bake instanced???
 void ofxGPULightmapper::bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount, bool usingPackedTriangles) {
     for (int i = 0; i < numPasses; i++) {
         this->passIndex = i;
