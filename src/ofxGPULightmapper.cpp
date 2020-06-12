@@ -322,11 +322,10 @@ void ofxGPULightmapper::updateShadowMap(ofNode & light, glm::vec3 origin, float 
     this->passIndex = 0;
 }
 
-// TODO: bake instanced???
-void ofxGPULightmapper::bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount, bool usingPackedTriangles) {
+void ofxGPULightmapper::bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount) {
     for (int i = 0; i < numPasses; i++) {
         this->passIndex = i;
-        beginBake(fbo, sampleCount*this->numPasses+i, usingPackedTriangles);
+        beginBake(fbo, sampleCount*this->numPasses+i);
         node.transformGL();
         mesh.draw();
         node.restoreTransformGL();
@@ -335,10 +334,17 @@ void ofxGPULightmapper::bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleC
     this->passIndex = 0;
 }
 
-// FIXME: better way to set usingPackedTriangles???
 void ofxGPULightmapper::bake(ofVboMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount) {
     bool usingPackedTriangles = mesh.getVbo().hasAttribute(this->LM_TEXCOORDS_LOCATION);
-    this->bake(mesh, fbo, node, sampleCount, usingPackedTriangles);
+    for (int i = 0; i < numPasses; i++) {
+        this->passIndex = i;
+        beginBake(fbo, sampleCount*this->numPasses+i, usingPackedTriangles);
+        node.transformGL();
+        mesh.drawInstanced(OF_MESH_FILL,1);;
+        node.restoreTransformGL();
+        endBake(fbo);
+    }
+    this->passIndex = 0;
 }
 
 // pack geometry into UV triangles. Generates coords for a LighMap texture.

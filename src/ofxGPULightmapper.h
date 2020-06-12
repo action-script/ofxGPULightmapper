@@ -45,7 +45,7 @@ class ofxGPULightmapper {
         void updateCachedShadowMap(ofNode & light, int sampleCount, glm::vec3 origin = {0,0,0}, float softness = 0.3,
                 float fustrumSize = 10, float nearClip = 0.01, float farClip = 100);
 
-        void bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount, bool usingPackedTriangles = false);
+        void bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount);
         void bake(ofVboMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount);
  
         // shadow mapping
