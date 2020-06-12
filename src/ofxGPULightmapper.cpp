@@ -84,7 +84,6 @@ bool ofxGPULightmapper::setup() {
         #version 150
         #define M_PI 3.1415926535897932384626433832795
         layout (triangles) in;
-        //layout (triangle_strip, max_vertices = 3) out;
         layout (triangle_strip, max_vertices = 9) out;
         uniform float texSize;
         uniform float dilation;
@@ -123,21 +122,29 @@ bool ofxGPULightmapper::setup() {
             }
 
             /*
-             *for (int i = 0; i < 3; i++) {
-             *    emit(vertices[i], i);
-             *}
+             *    0                     \
+             *    ^                      |  original geometry
+             *   / \                     |  uv coords = original geometry
+             * 1/___\2___4____6         /
+             *  \   |   /|   /|\        \
+             *   \  |  / |  / | \        |  dilation vertices
+             *    \ | /  | /  |  \       |  uv coords = original geometry
+             *     \|/___|/___|___\     /
+             *      3    5    7    8
+             *
+             *   [0-4] [1-6] [3(2)-8]
              */
 
-            emit(gl_in[0].gl_Position, 0); // 0
-            emit(gl_in[1].gl_Position, 1); // 1
-            emit(gl_in[2].gl_Position, 2); // 2
+            emit(gl_in[0].gl_Position, 0);  // 0
+            emit(gl_in[1].gl_Position, 1);  // 1
+            emit(gl_in[2].gl_Position, 2);  // 2
 
-            emit(vertices[2], 2); // 3
-            emit(gl_in[0].gl_Position, 0); // 4
-            emit(vertices[0], 0); // 5
-            emit(gl_in[1].gl_Position, 1); // 6
-            emit(vertices[1], 1); // 7
-            emit(vertices[2], 2); // 8
+            emit(vertices[2], 2);           // 3
+            emit(gl_in[0].gl_Position, 0);  // 4
+            emit(vertices[0], 0);           // 5
+            emit(gl_in[1].gl_Position, 1);  // 6
+            emit(vertices[1], 1);           // 7
+            emit(vertices[2], 2);           // 8
         }
         )"
     );
