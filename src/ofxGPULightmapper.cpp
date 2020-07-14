@@ -57,6 +57,7 @@ bool ofxGPULightmapper::setup() {
         uniform mat4 modelMatrix;
         uniform vec3 light; // shadow light position
         uniform int usingPackedTriangles;
+        uniform float contact_shadow_factor;
         in vec4 position;
         in vec4 normal;
         in vec2 texcoord;
@@ -70,7 +71,7 @@ bool ofxGPULightmapper::setup() {
         out vec2 v_texcoord;
         void main() {
             // fix contact shadows by moving geometry against light
-            vec3 pos = position.xyz + normalize(cross(normal.xyz, cross(normal.xyz, light))) * 0.02;
+            vec3 pos = position.xyz + normalize(cross(normal.xyz, cross(normal.xyz, light))) * contact_shadow_factor;
             v_shadowPos = shadowViewProjectionMatrix * (modelMatrix * vec4(pos, 1));
             v_normal = normal.xyz;
             v_texcoord = mix(texcoord, t_texcoord, usingPackedTriangles);
@@ -242,6 +243,7 @@ void ofxGPULightmapper::beginBake(ofFbo& fbo, int sampleCount, bool usingPackedT
     lightmapShader.setUniform1f("sampleCount", sampleCount);
     lightmapShader.setUniform1f("texSize", fbo.getWidth());
     lightmapShader.setUniform1f("dilation", this->geometry_dilation);
+    lightmapShader.setUniform1f("contact_shadow_factor", this->contact_shadow_factor);
     lightmapShader.setUniform1f("shadow_bias", this->shadow_bias);
 }
 

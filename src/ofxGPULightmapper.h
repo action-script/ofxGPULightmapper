@@ -65,6 +65,8 @@ class ofxGPULightmapper {
 
         void setShadowBias(float bias) { this->shadow_bias = bias; }
 
+        void setContactShadowFactor(float factor) { this->contact_shadow_factor = factor; }
+
 
     private:
         enum FBO_TYPE {
@@ -90,6 +92,8 @@ class ofxGPULightmapper {
 
         // conservative rasterization.
         float geometry_dilation = 2;
+
+        float contact_shadow_factor = 0.02;
 
         float shadow_bias = 0.003f;
         glm::mat4 bias = glm::mat4(
