@@ -349,7 +349,7 @@ void ofxGPULightmapper::bake(ofVboMesh& mesh, ofFbo& fbo, ofNode& node, int samp
         this->passIndex = i;
         beginBake(fbo, sampleCount*this->numPasses+i, usingPackedTriangles);
         node.transformGL();
-        mesh.drawInstanced(OF_MESH_FILL,1);;
+        mesh.drawInstanced(OF_MESH_FILL,1);
         node.restoreTransformGL();
         endBake(fbo);
     }
