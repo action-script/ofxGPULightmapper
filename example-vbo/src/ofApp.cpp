@@ -47,7 +47,7 @@ void ofApp::setup() {
 }
 
 //--------------------------------------------------------------
-void ofApp::update(){
+void ofApp::update() {
     // bake
     ofLight light; // also works with ofNode
     light.setPosition(glm::vec3(-2.52348, 2.79526, 7.84836));
@@ -76,13 +76,13 @@ void ofApp::draw() {
 
     // debug textures
     ofDisableDepthTest();
-    lightmapper.getDepthTexture().draw(ofGetWidth()-300,0, 300, 300);
-    lightmapper.getDepthTexture(1).draw(ofGetWidth()-300,300, 300, 300);
-    int debugSize = 150;
-    fboMonkey.draw(0, 0, debugSize, debugSize);
-    fboPlane.draw(debugSize, 0, debugSize, debugSize);
-    fboTube.draw(0, debugSize, debugSize, debugSize);
-    fboWall.draw(debugSize, debugSize, debugSize, debugSize);
+    int mapsize = 300;
+    lightmapper.getDepthTexture().draw(ofGetWidth()-mapsize,0, mapsize, mapsize);
+    lightmapper.getDepthTexture(1).draw(ofGetWidth()-mapsize, mapsize, mapsize, mapsize);
+    fboMonkey.draw(0, 0, mapsize, mapsize);
+    fboPlane.draw(mapsize, 0, mapsize, mapsize);
+    fboTube.draw(0, mapsize, mapsize, mapsize);
+    fboWall.draw(mapsize, mapsize, mapsize, mapsize);
 
     sampleCount++;
 }
