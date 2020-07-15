@@ -76,7 +76,7 @@ class ofxGPULightmapper {
 
         GLuint LM_TEXCOORDS_LOCATION = 9;
 
-        void allocatFBO(ofFbo& fbo, FBO_TYPE type);
+        void allocateFBO(ofFbo& fbo, FBO_TYPE type);
 
         ofFbo::Settings depthFboSettings;
         ofFbo::Settings lightFboSettings;

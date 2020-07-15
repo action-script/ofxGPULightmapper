@@ -14,7 +14,7 @@ bool ofxGPULightmapper::setup() {
     for (int i = 0; i < numPasses; i++) {
         // allocate depth FBOs
         depthFBO.emplace_back(new ofFbo);
-        allocatFBO(*depthFBO[i].get(), FBO_DEPTH);
+        allocateFBO(*depthFBO[i].get(), FBO_DEPTH);
 
         // set up passes vector
         glm::mat4 bm;
@@ -256,10 +256,10 @@ void ofxGPULightmapper::endBake(ofFbo& fbo) {
 void ofxGPULightmapper::allocateFBO(ofFbo& fbo, glm::vec2 size) {
     lightFboSettings.width  = size.x;
     lightFboSettings.height = size.y;
-    allocatFBO(fbo, FBO_LIGHT);
+    allocateFBO(fbo, FBO_LIGHT);
 }
 
-void ofxGPULightmapper::allocatFBO(ofFbo& fbo, FBO_TYPE type) {
+void ofxGPULightmapper::allocateFBO(ofFbo& fbo, FBO_TYPE type) {
     switch (type) {
         case FBO_TYPE::FBO_DEPTH:
             fbo.allocate(depthFboSettings);
