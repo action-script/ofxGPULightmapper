@@ -4,7 +4,7 @@
 void ofApp::setup() {
     // set up lightmapper and pass scene draw function
     function<void()> scene = bind(&ofApp::renderScene, this);
-    bool success = lightmapper.setup(scene);
+    bool success = lightmapper.setup(scene, 5);
     if (success) ofLog() << "Lightmapper ready";
 
     // load models
