@@ -22,10 +22,8 @@ uniform mat4 normalMatrix;
 
 
 void main (void) {
-    /*v_normal = normal.xyz;*/
     v_worldPosition = (modelMatrix * position).xyz;
 
-    /*v_texcoord = (textureMatrix*vec4(texcoord.x,texcoord.y,0,1)).xy;*/
     v_texcoord = texcoord;
     v_lm_texcoord = t_texcoord;
     gl_Position = modelViewProjectionMatrix * position;

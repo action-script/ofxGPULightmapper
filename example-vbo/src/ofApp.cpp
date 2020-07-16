@@ -13,6 +13,13 @@ void ofApp::setup() {
     meshTube.load("tube.ply");
     meshWall.load("wall.ply");
 
+    // generate lightmap coords for the models
+    lightmapper.lightmapPack(meshMonkey);
+    //lightmapper.lightmapPack(meshPlane, {800,800});
+    lightmapper.lightmapPack(meshTube);
+    lightmapper.lightmapPack(meshWall, {500,500});
+
+
     // place them into world
     nodeMonkey.setPosition({0,0,0});
     nodeMonkey.setScale({1.4,1.8,1.4});
@@ -23,12 +30,6 @@ void ofApp::setup() {
     nodeWall.setScale({1,0.8,1});
     nodeWall.panDeg(30);
 
-    // generate lightmap coords for the model
-    lightmapper.lightmapPack(meshMonkey);
-    //lightmapper.lightmapPack(meshPlane, {800,800});
-    lightmapper.lightmapPack(meshTube);
-    lightmapper.lightmapPack(meshWall, {500,500});
-
     // setup lightmaps
     lightmapper.allocateFBO(fboMonkey);
     lightmapper.allocateFBO(fboPlane, {800,800});
@@ -37,7 +38,7 @@ void ofApp::setup() {
 
     // material
     ofDisableArbTex();
-    material.load("phong");
+    material.load("material");
     texture.load("UVtexture.png");
 
     // camera

@@ -22,16 +22,9 @@ uniform mat4 modelViewProjectionMatrix;
 
 
 void main (void) {
-    /*vec3 ambient = global_ambient.rgb;*/
-    /*vec3 diffuse = vec3(0.0,0.0,0.0);*/
-    /*vec3 specular = vec3(0.0,0.0,0.0);*/
-
     vec4 tex = texture(tex0, v_texcoord);
     vec4 lmTex = texture(tex1, v_lm_texcoord);
     vec4 localColor = tex * lmTex;
-    /*localColor = texture(tex0 , v_texcoord);*/
-    /*localColor =  vec4(1,0,0,1) * lmTex;*/
-    /*localColor = lmTex;*/
 
     outColor = clamp( localColor, 0.0, 1.0 );
 }
