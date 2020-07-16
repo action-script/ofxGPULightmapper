@@ -47,7 +47,7 @@ void ofApp::update() {
         auto& fbo = lightmaps.at(currentTarget);
 
         // compute depth map for shadow [sharing cache]
-        lightmapper.updateCachedShadowMap(light, sampleCount, {0,0,0}, 0.05, 12, 0.01, 20);
+        lightmapper.updateCachedShadowMap(light, sampleCount, node.getGlobalPosition(), 0.05, 12, 0.01, 20);
 
         // bake target model
         lightmapper.bake(model, fbo, node, sampleCount);
@@ -83,21 +83,21 @@ void ofApp::draw() {
 void ofApp::renderScene() {
     // render scene
 
+    material.begin();
+    material.setUniformTexture("tex0", texture, 0);
+
     for (size_t i; i < models.size(); i++) {
         auto& model = *models[i];
         auto& node = transformations.at(i);
         auto& fbo = lightmaps.at(i);
 
         node.transformGL();
-
-    material.begin();
-    material.setUniformTexture("tex0", texture, 0);
         material.setUniformTexture("tex1", fbo.getTextureReference(), 1);
         model.draw();
-    material.end();
-
         node.restoreTransformGL();
     }
+
+    material.end();
 }
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key) {
