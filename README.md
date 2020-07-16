@@ -8,10 +8,10 @@ A simple OpenGL ambient light baker for OpenFrameworks.
 
 
 
-![ofxGPULightmapper_demo_4](/home/action/code/openFrameworks/addons/ofxGPULightmapper/images/ofxGPULightmapper_demo_4.jpg) ![ofxGPULightmapper_demo_4_mix](/home/action/code/openFrameworks/addons/ofxGPULightmapper/images/ofxGPULightmapper_demo_4_mix.jpg)
+![ofxGPULightmapper_demo_4](./images/ofxGPULightmapper_demo_4.jpg) ![ofxGPULightmapper_demo_4_mix](./images/ofxGPULightmapper_demo_4_mix.jpg)
 
 
-![ofxGPULightmapper_demo_1](/home/action/code/openFrameworks/addons/ofxGPULightmapper/images/ofxGPULightmapper_demo_1.jpg) ![ofxGPULightmapper_demo_2_mix](/home/action/code/openFrameworks/addons/ofxGPULightmapper/images/ofxGPULightmapper_demo_2_mix.jpg)
+![ofxGPULightmapper_demo_1](./images/ofxGPULightmapper_demo_1.jpg) ![ofxGPULightmapper_demo_2_mix](./images/ofxGPULightmapper_demo_2_mix.jpg)
 
 
 
