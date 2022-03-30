@@ -1,6 +1,8 @@
 #pragma once
 
 #include "ofMain.h"
+#include "glm/gtc/random.hpp"
+
 
 #include "trianglepacker/trianglepacker.h"
 
