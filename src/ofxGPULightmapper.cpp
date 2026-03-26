@@ -165,10 +165,26 @@ bool ofxGPULightmapper::setup() {
         uniform int batchSize;
         uniform float accumulatedPasses;
         uniform float shadow_bias;
+        uniform float shadowMapTexelSize; // 1.0 / shadow map resolution
         in vec4 f_worldPos;
         in vec3 f_normal;
         in vec2 f_texcoord;
         out vec4 outputColor;
+    )";
+    // PCF helper per shadow map — 3x3 kernel for smooth edges.
+    // Each texture() on sampler2DShadow does hardware bilinear comparison,
+    // so 9 taps effectively give 4x4 filtering.
+    for (int i = 0; i < batchSize; i++) {
+        std::string si = std::to_string(i);
+        frag += "        float sampleShadow" + si + "(vec3 co) {\n"
+                "            float s = 0.0;\n"
+                "            for (int y = -1; y <= 1; y++)\n"
+                "                for (int x = -1; x <= 1; x++)\n"
+                "                    s += texture(shadowMaps[" + si + "], vec3(co.xy + vec2(x, y) * shadowMapTexelSize, co.z - shadow_bias));\n"
+                "            return s / 9.0;\n"
+                "        }\n";
+    }
+    frag += R"(
         void main() {
             float shadowSum = 0.0;
     )";
@@ -180,7 +196,7 @@ bool ofxGPULightmapper::setup() {
                 "                co.y = 1.0 - co.y;\n"
                 "                float s = 1.0;\n"
                 "                if (co.x > 0.0 && co.x < 1.0 && co.y > 0.0 && co.y < 1.0)\n"
-                "                    s = texture(shadowMaps[" + si + "], vec3(co.xy, co.z - shadow_bias));\n"
+                "                    s = sampleShadow" + si + "(co);\n"
                 "                shadowSum += s;\n"
                 "            }\n";
     }
@@ -213,6 +229,9 @@ void ofxGPULightmapper::beginShadowMap(ofNode& light, float fustrumSize, float n
     depthFBO[passIndex]->begin(OF_FBOMODE_NODEFAULTS);
 
     ofEnableDepthTest();
+    // slope-scaled depth bias: adjusts per-polygon based on angle to light
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(shadow_bias_slope, shadow_bias_units);
 
     ofPushView();
 
@@ -227,7 +246,7 @@ void ofxGPULightmapper::beginShadowMap(ofNode& light, float fustrumSize, float n
 }
 
 void ofxGPULightmapper::endShadowMap() {
-    // end depth render FBO and shader
+    glDisable(GL_POLYGON_OFFSET_FILL);
     depthFBO[passIndex]->end();
     depthShader.end();
     ofPopView(); // pop at the end to prevent trigger update matrix stack
@@ -267,6 +286,7 @@ void ofxGPULightmapper::beginBakeBatch(ofFbo& fbo, int startPass, int count, flo
     lightmapShader.setUniform1f("dilation", this->geometry_dilation);
     lightmapShader.setUniform1f("contact_shadow_factor", this->contact_shadow_factor);
     lightmapShader.setUniform1f("shadow_bias", this->shadow_bias);
+    lightmapShader.setUniform1f("shadowMapTexelSize", 1.0f / depthFboSettings.width);
 }
 
 void ofxGPULightmapper::endBake(ofFbo& fbo) {

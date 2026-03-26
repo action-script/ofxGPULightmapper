@@ -42,6 +42,9 @@ class ofxGPULightmapper {
 
         void setShadowBias(float bias) { this->shadow_bias = bias; }
 
+        // slope and units for glPolygonOffset during depth pass
+        void setShadowBiasSlope(float slope, float units) { this->shadow_bias_slope = slope; this->shadow_bias_units = units; }
+
         void setContactShadowFactor(float factor) { this->contact_shadow_factor = factor; }
 
         void clearCache() { random_cache.clear(); }
@@ -77,6 +80,8 @@ class ofxGPULightmapper {
         float contact_shadow_factor = 0.02;
 
         float shadow_bias = 0.003f;
+        float shadow_bias_slope = 2.0f;  // glPolygonOffset factor: scales with polygon slope
+        float shadow_bias_units = 0.2f;  // glPolygonOffset units: fixed depth offset
         glm::mat4 clipToUvMatrix = glm::mat4(
             0.5, 0.0, 0.0, 0.0,
             0.0, 0.5, 0.0, 0.0,
