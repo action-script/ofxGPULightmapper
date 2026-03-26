@@ -17,19 +17,19 @@ bool ofxGPULightmapper::setup() {
     lastLightPos.clear();
     random_cache.clear();
 
-    for (int i = 0; i < numPasses; i++) {
-        // allocate depth FBOs
+    for (unsigned int i = 0; i < numPasses; i++) {
         depthFBO.emplace_back(new ofFbo);
-        allocateFBO(*depthFBO[i].get(), FBO_TYPE::DEPTH);
-
-        // set up passes vector
-        glm::mat4 bm;
-        lastBiasedMatrix.push_back(bm);
-        glm::vec3 lpos;
-        lastLightPos.push_back(lpos);
+        allocateFBO(*depthFBO[i], FBO_TYPE::DEPTH);
+        lastBiasedMatrix.emplace_back();
+        lastLightPos.emplace_back();
     }
 
     this->passIndex = 0;
+
+    // determine how many shadow maps we can bind simultaneously
+    GLint maxTexUnits;
+    glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &maxTexUnits);
+    batchSize = std::min((int)numPasses, (int)maxTexUnits - 1);
 
     // compile depth shaders
     bool success;
@@ -55,13 +55,13 @@ bool ofxGPULightmapper::setup() {
 	success &= depthShader.linkProgram();
 
 
-    // compile light packer shader
+    // compile lightmap shader
+    // vertex outputs world position; fragment projects into each shadow map per batch
     std::string lm_vertexshader = R"(
         #version 330
         uniform mat4 modelViewProjectionMatrix;
-        uniform mat4 shadowViewProjectionMatrix;
         uniform mat4 modelMatrix;
-        uniform vec3 light; // shadow light position
+        uniform vec3 light; // first light in batch, used for contact shadow offset
         uniform int usingPackedTriangles;
         uniform float contact_shadow_factor;
         in vec4 position;
@@ -72,13 +72,13 @@ bool ofxGPULightmapper::setup() {
     // custom triangle packed UVs
     lm_vertexshader += "layout (location = "+std::to_string(LM_TEXCOORDS_LOCATION)+") in vec2 t_texcoord;\n";
     lm_vertexshader += R"(
-        out vec4 v_shadowPos;
+        out vec4 v_worldPos;
         out vec3 v_normal;
         out vec2 v_texcoord;
         void main() {
             // fix contact shadows by moving geometry against light
             vec3 pos = position.xyz + normalize(cross(normal.xyz, cross(normal.xyz, light))) * contact_shadow_factor;
-            v_shadowPos = shadowViewProjectionMatrix * (modelMatrix * vec4(pos, 1));
+            v_worldPos = modelMatrix * vec4(pos, 1);
             v_normal = normal.xyz;
             v_texcoord = mix(texcoord, t_texcoord, usingPackedTriangles);
             gl_Position = vec4(v_texcoord * 2.0 - 1.0, 0.0, 1.0);
@@ -94,10 +94,10 @@ bool ofxGPULightmapper::setup() {
         layout (triangle_strip, max_vertices = 9) out;
         uniform float texSize;
         uniform float dilation;
-        in vec4 v_shadowPos[3];
+        in vec4 v_worldPos[3];
         in vec3 v_normal[3];
         in vec2 v_texcoord[3];
-        out vec4 f_shadowPos;
+        out vec4 f_worldPos;
         out vec3 f_normal;
         out vec2 f_texcoord;
         float atan2(in float y, in float x) {
@@ -106,7 +106,7 @@ bool ofxGPULightmapper::setup() {
         }
         void emit(vec4 position, int i) {
             gl_Position = position;
-            f_shadowPos = v_shadowPos[i];
+            f_worldPos = v_worldPos[i];
             f_normal = v_normal[i];
             f_texcoord = v_texcoord[i];
             EmitVertex();
@@ -155,34 +155,42 @@ bool ofxGPULightmapper::setup() {
         }
         )"
     );
-    success &= lightmapShader.setupShaderFromSource(GL_FRAGMENT_SHADER,
-        R"(
-        #version 330
-        uniform sampler2DShadow shadowMap;
-        uniform vec3 light; // shadow light position
-        uniform float sampleCount;
-        uniform float shadow_bias; // 0.003
-        in vec4 f_shadowPos;
+    // Fragment shader: sample all shadow maps in batch and average.
+    // Loop is unrolled with literal indices — GLSL 3.30 doesn't guarantee dynamic sampler indexing.
+    // Alpha blend weight = batchSize/(accumulatedPasses+batchSize) for weighted running average.
+    std::string frag = "#version 330\n"
+        "#define BATCH_SIZE " + std::to_string(batchSize) + "\n" + R"(
+        uniform sampler2DShadow shadowMaps[BATCH_SIZE];
+        uniform mat4 shadowViewProjectionMatrices[BATCH_SIZE];
+        uniform int batchSize;
+        uniform float accumulatedPasses;
+        uniform float shadow_bias;
+        in vec4 f_worldPos;
         in vec3 f_normal;
         in vec2 f_texcoord;
         out vec4 outputColor;
-        vec3 coords = f_shadowPos.xyz / f_shadowPos.w;
-        float shadow = 1.0f;
         void main() {
-            coords.y = 1-coords.y;
-            // check if coords are in shadowMap texture
-            if (coords.x>0.0 && coords.x<1.0 && coords.y>0.0 && coords.y<1.0) {
-                shadow = texture(shadowMap, vec3(coords.xy, coords.z - shadow_bias));
-            }
-            outputColor = vec4(vec3(shadow), 1.0 / (1.0 + sampleCount));
-            //outputColor = vec4(f_texcoord.x, f_texcoord.y, 0.5,1);
-            //outputColor = vec4(0,1,0,1);
+            float shadowSum = 0.0;
+    )";
+    for (int i = 0; i < batchSize; i++) {
+        std::string si = std::to_string(i);
+        frag += "            if (" + si + " < batchSize) {\n"
+                "                vec4 sp = shadowViewProjectionMatrices[" + si + "] * f_worldPos;\n"
+                "                vec3 co = sp.xyz / sp.w;\n"
+                "                co.y = 1.0 - co.y;\n"
+                "                float s = 1.0;\n"
+                "                if (co.x > 0.0 && co.x < 1.0 && co.y > 0.0 && co.y < 1.0)\n"
+                "                    s = texture(shadowMaps[" + si + "], vec3(co.xy, co.z - shadow_bias));\n"
+                "                shadowSum += s;\n"
+                "            }\n";
+    }
+    frag += R"(
+            outputColor = vec4(vec3(shadowSum / float(batchSize)), float(batchSize) / (accumulatedPasses + float(batchSize)));
         }
-        )"
-    );
+    )";
+    success &= lightmapShader.setupShaderFromSource(GL_FRAGMENT_SHADER, frag);
     if(ofIsGLProgrammableRenderer()) lightmapShader.bindDefaults();
 	success &= lightmapShader.linkProgram();
-    //lightmapShader.setGeometryInputType(GL_TRIANGLE_STRIP);
 
     return success;
 }
@@ -197,7 +205,7 @@ void ofxGPULightmapper::beginShadowMap(ofNode& light, float fustrumSize, float n
     auto view   = glm::inverse(light.getGlobalTransformMatrix());
     auto viewProjection = ortho * view;
 
-    this->lastBiasedMatrix[passIndex] = this->bias * viewProjection;
+    this->lastBiasedMatrix[passIndex] = this->clipToUvMatrix * viewProjection;
     this->lastLightPos[passIndex] = light.getPosition();
 
     // begin depth render FBO and shader
@@ -226,27 +234,35 @@ void ofxGPULightmapper::endShadowMap() {
 }
 
 void ofxGPULightmapper::beginBake(ofFbo& fbo, int sampleCount, bool usingPackedTriangles) {
-    // render shadowMap into texture space
-    ofDisableDepthTest();
+    // legacy single-pass entry point — wraps the first pass as a single-item batch
+    beginBakeBatch(fbo, passIndex, 1, (float)sampleCount, usingPackedTriangles);
+}
 
-    // begin lightmap shader and FBO
+void ofxGPULightmapper::beginBakeBatch(ofFbo& fbo, int startPass, int count, float accumulatedPasses, bool usingPackedTriangles) {
+    ofDisableDepthTest();
     lightmapShader.begin();
     ofEnableBlendMode(OF_BLENDMODE_ALPHA);
     fbo.begin();
 
-    //glClearColor(0,0,0,0);
-    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // bind depth textures and set uniform arrays via direct GL for reliable sampler array support
+    for (int i = 0; i < count; i++) {
+        depthFBO[startPass + i]->getDepthTexture().bind(i);
+    }
+    GLint samplerLoc = lightmapShader.getUniformLocation("shadowMaps");
+    if (samplerLoc != -1) {
+        std::vector<int> units(count);
+        for (int i = 0; i < count; i++) units[i] = i;
+        glUniform1iv(samplerLoc, count, units.data());
+    }
+    GLint matLoc = lightmapShader.getUniformLocation("shadowViewProjectionMatrices");
+    if (matLoc != -1) {
+        glUniformMatrix4fv(matLoc, count, GL_FALSE, glm::value_ptr(lastBiasedMatrix[startPass]));
+    }
 
-    // bind shadow map to texture
-    lightmapShader.setUniformTexture("shadowMap", this->depthFBO[passIndex]->getDepthTexture(), 0);
-    // pass the light projection view
-    lightmapShader.setUniformMatrix4f("shadowViewProjectionMatrix", this->lastBiasedMatrix[passIndex]);
-    // pass the light position
-    lightmapShader.setUniform3f("light", this->lastLightPos[passIndex]);
-    // define if using packed triangle UVs
+    lightmapShader.setUniform1i("batchSize", count);
+    lightmapShader.setUniform1f("accumulatedPasses", accumulatedPasses);
+    lightmapShader.setUniform3f("light", lastLightPos[startPass]);
     lightmapShader.setUniform1i("usingPackedTriangles", usingPackedTriangles);
-
-    lightmapShader.setUniform1f("sampleCount", sampleCount);
     lightmapShader.setUniform1f("texSize", fbo.getWidth());
     lightmapShader.setUniform1f("dilation", this->geometry_dilation);
     lightmapShader.setUniform1f("contact_shadow_factor", this->contact_shadow_factor);
@@ -257,6 +273,11 @@ void ofxGPULightmapper::endBake(ofFbo& fbo) {
     fbo.end();
     ofDisableBlendMode();
     lightmapShader.end();
+    // unbind depth textures from all units to prevent feedback loops —
+    // next frame's shadow map rendering writes to these same FBOs
+    for (int i = 0; i < batchSize; i++) {
+        depthFBO[i]->getDepthTexture().unbind(i);
+    }
 }
 
 void ofxGPULightmapper::allocateFBO(ofFbo& fbo, glm::vec2 size) {
@@ -273,7 +294,6 @@ void ofxGPULightmapper::allocateFBO(ofFbo& fbo, FBO_TYPE type) {
             // allow depth texture to compare in glsl
             fbo.getDepthTexture().bind();
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-            //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
             fbo.getDepthTexture().unbind();
             break;
@@ -344,9 +364,12 @@ void ofxGPULightmapper::updateShadowMap(ofNode & light, glm::vec3 origin, float 
 }
 
 void ofxGPULightmapper::bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount) {
-    for (int i = 0; i < numPasses; i++) {
-        this->passIndex = i;
-        beginBake(fbo, sampleCount*this->numPasses+i);
+    int numBatches = (numPasses + batchSize - 1) / batchSize;
+    for (int b = 0; b < numBatches; b++) {
+        int start = b * batchSize;
+        int count = std::min(batchSize, (int)numPasses - start);
+        float accumulatedPasses = float(sampleCount * (int)numPasses + start);
+        beginBakeBatch(fbo, start, count, accumulatedPasses);
         node.transformGL();
         mesh.draw();
         node.restoreTransformGL();
@@ -357,11 +380,14 @@ void ofxGPULightmapper::bake(ofMesh& mesh, ofFbo& fbo, ofNode& node, int sampleC
 
 void ofxGPULightmapper::bake(ofVboMesh& mesh, ofFbo& fbo, ofNode& node, int sampleCount) {
     bool usingPackedTriangles = mesh.getVbo().hasAttribute(this->LM_TEXCOORDS_LOCATION);
-    for (int i = 0; i < numPasses; i++) {
-        this->passIndex = i;
-        beginBake(fbo, sampleCount*this->numPasses+i, usingPackedTriangles);
+    int numBatches = (numPasses + batchSize - 1) / batchSize;
+    for (int b = 0; b < numBatches; b++) {
+        int start = b * batchSize;
+        int count = std::min(batchSize, (int)numPasses - start);
+        float accumulatedPasses = float(sampleCount * (int)numPasses + start);
+        beginBakeBatch(fbo, start, count, accumulatedPasses, usingPackedTriangles);
         node.transformGL();
-        mesh.drawInstanced(OF_MESH_FILL,1);
+        mesh.drawInstanced(OF_MESH_FILL, 1);
         node.restoreTransformGL();
         endBake(fbo);
     }

@@ -56,6 +56,7 @@ class ofxGPULightmapper {
         static constexpr GLuint LM_TEXCOORDS_LOCATION = 9;
 
         void allocateFBO(ofFbo& fbo, FBO_TYPE type);
+        void beginBakeBatch(ofFbo& fbo, int startPass, int count, float accumulatedPasses, bool usingPackedTriangles = false);
 
         ofFbo::Settings depthFboSettings;
         ofFbo::Settings lightFboSettings;
@@ -63,6 +64,7 @@ class ofxGPULightmapper {
         std::vector<std::unique_ptr<ofFbo>> depthFBO;   // scene depth
         unsigned int passIndex = 0;
         unsigned int numPasses = 1;
+        int batchSize = 1; // shadow maps bound per bake draw call, set from GL_MAX_TEXTURE_IMAGE_UNITS
 
         ofShader depthShader;       // depth test
         ofShader lightmapShader;    // shadow mapping
@@ -75,7 +77,7 @@ class ofxGPULightmapper {
         float contact_shadow_factor = 0.02;
 
         float shadow_bias = 0.003f;
-        glm::mat4 bias = glm::mat4(
+        glm::mat4 clipToUvMatrix = glm::mat4(
             0.5, 0.0, 0.0, 0.0,
             0.0, 0.5, 0.0, 0.0,
             0.0, 0.0, 0.5, 0.0,
