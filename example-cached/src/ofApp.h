@@ -33,4 +33,6 @@ class ofApp : public ofBaseApp{
         ofImage texture;
 
         unsigned int currentTarget = 0, maxSamples = 30*1.5;
+
+        ofLight light; // Also works with ofNode
 };

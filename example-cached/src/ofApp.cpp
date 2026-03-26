@@ -32,14 +32,14 @@ void ofApp::setup() {
     cam.setDistance(10.0f);
     cam.setNearClip(0.01f);
     cam.setFarClip(100.0f);
+
+    // light (initialized once, reused every frame)
+    light.setPosition(glm::vec3(3, 10, -1.4));
+    light.lookAt(glm::vec3(0,0,0));
 }
 
 //--------------------------------------------------------------
 void ofApp::update() {
-    // bake
-    ofLight light; // also works with ofNode
-    light.setPosition(glm::vec3(3, 10, -1.4));
-    light.lookAt(glm::vec3(0,0,0));
 
     if (currentTarget < models.size()) {
         auto& model = *models[currentTarget];
@@ -86,7 +86,7 @@ void ofApp::renderScene() {
     material.begin();
     material.setUniformTexture("tex0", texture, 0);
 
-    for (size_t i; i < models.size(); i++) {
+    for (size_t i = 0; i < models.size(); i++) {
         auto& model = *models[i];
         auto& node = transformations.at(i);
         auto& fbo = lightmaps.at(i);
@@ -111,6 +111,7 @@ void ofApp::resetScene() {
     models.clear();
     transformations.clear();
     lightmaps.clear();
+    lightmapper.clearCache();
 
     size_t nDonuts = (int)ofRandom(4,8);
     size_t nPills = (int)ofRandom(3,10);
