@@ -3,7 +3,7 @@
 //--------------------------------------------------------------
 void ofApp::setup() {
     // set up lightmapper and pass scene draw function
-    std::function<void()> scene = std::bind(&ofApp::renderScene, this);
+    std::function<void()> scene = std::bind(&ofApp::renderSceneGeometry, this);
     bool success = lightmapper.setup(scene);
     if (success) ofLog() << "Lightmapper ready";
 
@@ -26,15 +26,14 @@ void ofApp::setup() {
     cam.setDistance(3.0f);
     cam.setNearClip(0.01f);
     cam.setFarClip(100.0f);
+
+    // light
+    light.setPosition(glm::vec3(4, 2.8, 5));
+    light.lookAt(glm::vec3(0,0,0));
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
-    // bake
-    ofLight light; // also works with ofNode
-    light.setPosition(glm::vec3(4, 2.8, 5));
-    light.lookAt(glm::vec3(0,0,0));
-
     // compute depth map for shadow
     lightmapper.updateShadowMap(light, {0,0,0}, 0.2, 6, 0.1, 11);
 
@@ -65,6 +64,15 @@ void ofApp::draw() {
     sampleCount++;
 }
 
+//--------------------------------------------------------------
+void ofApp::renderSceneGeometry() {
+    // geometry-only pass for shadow map depth rendering - no textures
+    nodeForm.transformGL();
+    meshForm.draw();
+    nodeForm.restoreTransformGL();
+
+    primFloor.draw();
+}
 //--------------------------------------------------------------
 void ofApp::renderScene() {
     // render scene

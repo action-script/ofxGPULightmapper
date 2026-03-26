@@ -10,6 +10,7 @@ class ofApp : public ofBaseApp{
 		void update();
 		void draw();
         void renderScene();
+        void renderSceneGeometry();
 
 		void keyPressed(int key);
 
@@ -27,4 +28,6 @@ class ofApp : public ofBaseApp{
         // lightmaps
         ofFbo fboForm;
         ofFbo fboFloor;
+
+        ofLight light;
 };

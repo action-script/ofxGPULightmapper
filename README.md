@@ -26,9 +26,14 @@ ofNode node;	// Model world transformation
 ofFbo lightmap; // Lightmap texture
 ofLight light;	// Sun light
 
-// set up lightmapper and pass scene draw function
-function<void()> scene = bind(&ofApp::renderScene, this);
-lightmapper.setup(scene, 10); // 10 light pases
+// set up lightmapper and pass scene draw function (geometry-only, no materials)
+function<void()> scene = bind(&ofApp::renderSceneGeometry, this);
+lightmapper.setup(scene, 10); // 10 direct + 10 indirect shadow passes (doubled internally)
+
+// optional: tune shadow quality
+lightmapper.setShadowBias(0.003f);
+lightmapper.setShadowBiasSlope(2.0f, 0.2f); // glPolygonOffset(slope, units) for grazing angles
+lightmapper.setContactShadowFactor(0.005f);
 
 // setup lightmap
 lightmapper.allocateFBO(lightmap);

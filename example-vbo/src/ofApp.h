@@ -10,6 +10,7 @@ class ofApp : public ofBaseApp{
 		void update();
 		void draw();
         void renderScene();
+        void renderSceneGeometry();
 
 		void keyPressed(int key);
 
@@ -28,4 +29,6 @@ class ofApp : public ofBaseApp{
         // material
         ofShader material;
         ofImage texture;
+
+        ofLight light;
 };
