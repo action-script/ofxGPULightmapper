@@ -44,6 +44,8 @@ class ofxGPULightmapper {
 
         void setContactShadowFactor(float factor) { this->contact_shadow_factor = factor; }
 
+        void clearCache() { random_cache.clear(); }
+
 
     private:
         enum class FBO_TYPE {
@@ -111,7 +113,7 @@ class ofxGPULightmapper {
             lightFboSettings.textureTarget = GL_TEXTURE_2D;
             lightFboSettings.useDepth = false;
             lightFboSettings.useStencil = false;
-            lightFboSettings.numSamples = 8;
+            lightFboSettings.numSamples = 0; // no MSAA: softness comes from multi-pass accumulation, not MSAA
             lightFboSettings.wrapModeHorizontal = GL_CLAMP_TO_EDGE;
             lightFboSettings.wrapModeVertical = GL_CLAMP_TO_EDGE;
         }

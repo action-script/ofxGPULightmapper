@@ -11,6 +11,12 @@ bool ofxGPULightmapper::setup(std::function<void()> scene, unsigned int numPasse
 }
 
 bool ofxGPULightmapper::setup() {
+    // clear existing state before (re)initializing
+    depthFBO.clear();
+    lastBiasedMatrix.clear();
+    lastLightPos.clear();
+    random_cache.clear();
+
     for (int i = 0; i < numPasses; i++) {
         // allocate depth FBOs
         depthFBO.emplace_back(new ofFbo);
@@ -271,9 +277,15 @@ void ofxGPULightmapper::allocateFBO(ofFbo& fbo, FBO_TYPE type) {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
             fbo.getDepthTexture().unbind();
             break;
-        case FBO_TYPE::LIGHT:
+        case FBO_TYPE::LIGHT: {
             fbo.allocate(this->lightFboSettings);
+            // glClearTexImage writes directly to texture memory without binding the FBO,
+            // avoiding framebuffer state changes. Called once at allocation, not per frame.
+            GLuint texId = fbo.getTexture().getTextureData().textureID;
+            const GLfloat zeros[4] = {0, 0, 0, 0};
+            glClearTexImage(texId, 0, GL_RGBA, GL_FLOAT, zeros);
             break;
+        }
     }
 }
 
