@@ -2,43 +2,18 @@
 
 #include "ofMain.h"
 #include "glm/gtc/random.hpp"
-
+#include <functional>
 
 #include "trianglepacker/trianglepacker.h"
 
 class ofxGPULightmapper {
     public:
         ofxGPULightmapper() {
-            // define depthFBO settings
-            depthFboSettings.depthStencilAsTexture = true;
-            depthFboSettings.depthStencilInternalFormat = GL_DEPTH_COMPONENT32;
-            depthFboSettings.width = 1024;
-            depthFboSettings.height = 1024;
-            depthFboSettings.minFilter = GL_NEAREST;
-            depthFboSettings.maxFilter = GL_NEAREST;
-            depthFboSettings.numColorbuffers = 0;
-            depthFboSettings.textureTarget = GL_TEXTURE_2D;
-            depthFboSettings.useDepth = true;
-            depthFboSettings.useStencil = false;
-            depthFboSettings.wrapModeHorizontal = GL_CLAMP_TO_EDGE;
-            depthFboSettings.wrapModeVertical = GL_CLAMP_TO_EDGE;
-
-            // define lightmapFBO settings
-            lightFboSettings.depthStencilAsTexture = false;
-            lightFboSettings.internalformat = GL_RGBA32F_ARB;
-            lightFboSettings.width = 1024;
-            lightFboSettings.height = 1024;
-            lightFboSettings.minFilter = GL_LINEAR;
-            lightFboSettings.maxFilter = GL_LINEAR;
-            lightFboSettings.textureTarget = GL_TEXTURE_2D;
-            lightFboSettings.useDepth = false;
-            lightFboSettings.useStencil = false;
-            lightFboSettings.numSamples = 8;
-            lightFboSettings.wrapModeHorizontal = GL_CLAMP_TO_EDGE;
-            lightFboSettings.wrapModeVertical = GL_CLAMP_TO_EDGE;
+            initDepthFboSettings();
+            initLightFboSettings();
         }
         bool setup();
-        bool setup(function<void()> scene, unsigned int numPasses = 1);
+        bool setup(std::function<void()> scene, unsigned int numPasses = 1);
 
         // easy API
         void updateShadowMap(ofNode & light, glm::vec3 origin = {0,0,0}, float softness = 0.3,
@@ -71,12 +46,12 @@ class ofxGPULightmapper {
 
 
     private:
-        enum FBO_TYPE {
-            FBO_DEPTH,
-            FBO_LIGHT
+        enum class FBO_TYPE {
+            DEPTH,
+            LIGHT
         };
 
-        GLuint LM_TEXCOORDS_LOCATION = 9;
+        static constexpr GLuint LM_TEXCOORDS_LOCATION = 9;
 
         void allocateFBO(ofFbo& fbo, FBO_TYPE type);
 
@@ -108,6 +83,37 @@ class ofxGPULightmapper {
         std::vector<glm::vec3> lastLightPos;
 
         // render scene function
-        function<void()> scene;
+        std::function<void()> scene;
+
+        // initialization helpers
+        void initDepthFboSettings() {
+            depthFboSettings.depthStencilAsTexture = true;
+            depthFboSettings.depthStencilInternalFormat = GL_DEPTH_COMPONENT32;
+            depthFboSettings.width = 1024;
+            depthFboSettings.height = 1024;
+            depthFboSettings.minFilter = GL_NEAREST;
+            depthFboSettings.maxFilter = GL_NEAREST;
+            depthFboSettings.numColorbuffers = 0;
+            depthFboSettings.textureTarget = GL_TEXTURE_2D;
+            depthFboSettings.useDepth = true;
+            depthFboSettings.useStencil = false;
+            depthFboSettings.wrapModeHorizontal = GL_CLAMP_TO_EDGE;
+            depthFboSettings.wrapModeVertical = GL_CLAMP_TO_EDGE;
+        }
+
+        void initLightFboSettings() {
+            lightFboSettings.depthStencilAsTexture = false;
+            lightFboSettings.internalformat = GL_RGBA32F_ARB;
+            lightFboSettings.width = 1024;
+            lightFboSettings.height = 1024;
+            lightFboSettings.minFilter = GL_LINEAR;
+            lightFboSettings.maxFilter = GL_LINEAR;
+            lightFboSettings.textureTarget = GL_TEXTURE_2D;
+            lightFboSettings.useDepth = false;
+            lightFboSettings.useStencil = false;
+            lightFboSettings.numSamples = 8;
+            lightFboSettings.wrapModeHorizontal = GL_CLAMP_TO_EDGE;
+            lightFboSettings.wrapModeVertical = GL_CLAMP_TO_EDGE;
+        }
 
 };

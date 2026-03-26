@@ -4,7 +4,7 @@
 //#define TP_DEBUG_OUTPUT
 #include "trianglepacker/trianglepacker.h"
 
-bool ofxGPULightmapper::setup(function<void()> scene, unsigned int numPasses) {
+bool ofxGPULightmapper::setup(std::function<void()> scene, unsigned int numPasses) {
     this->scene = scene;
     this->numPasses = numPasses * 2;
     return setup();
@@ -14,7 +14,7 @@ bool ofxGPULightmapper::setup() {
     for (int i = 0; i < numPasses; i++) {
         // allocate depth FBOs
         depthFBO.emplace_back(new ofFbo);
-        allocateFBO(*depthFBO[i].get(), FBO_DEPTH);
+        allocateFBO(*depthFBO[i].get(), FBO_TYPE::DEPTH);
 
         // set up passes vector
         glm::mat4 bm;
@@ -256,12 +256,12 @@ void ofxGPULightmapper::endBake(ofFbo& fbo) {
 void ofxGPULightmapper::allocateFBO(ofFbo& fbo, glm::vec2 size) {
     lightFboSettings.width  = size.x;
     lightFboSettings.height = size.y;
-    allocateFBO(fbo, FBO_LIGHT);
+    allocateFBO(fbo, FBO_TYPE::LIGHT);
 }
 
 void ofxGPULightmapper::allocateFBO(ofFbo& fbo, FBO_TYPE type) {
     switch (type) {
-        case FBO_TYPE::FBO_DEPTH:
+        case FBO_TYPE::DEPTH:
             fbo.allocate(depthFboSettings);
             fbo.getDepthTexture().setRGToRGBASwizzles(true);
             // allow depth texture to compare in glsl
@@ -271,7 +271,7 @@ void ofxGPULightmapper::allocateFBO(ofFbo& fbo, FBO_TYPE type) {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
             fbo.getDepthTexture().unbind();
             break;
-        case FBO_TYPE::FBO_LIGHT:
+        case FBO_TYPE::LIGHT:
             fbo.allocate(this->lightFboSettings);
             break;
     }

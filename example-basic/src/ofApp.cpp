@@ -3,7 +3,7 @@
 //--------------------------------------------------------------
 void ofApp::setup() {
     // set up lightmapper and pass scene draw function
-    function<void()> scene = bind(&ofApp::renderScene, this);
+    std::function<void()> scene = std::bind(&ofApp::renderScene, this);
     bool success = lightmapper.setup(scene);
     if (success) ofLog() << "Lightmapper ready";
 
