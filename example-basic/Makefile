@@ -9,5 +9,6 @@ ifndef OF_ROOT
 	OF_ROOT=$(realpath ../../..)
 endif
 
+PLATFORM_RUN_COMMAND = cd bin; XDG_SESSION_TYPE=x11 WAYLAND_DISPLAY= ./$(BIN_NAME)
 # call the project makefile!
 include $(OF_ROOT)/libs/openFrameworksCompiled/project/makefileCommon/compile.project.mk
