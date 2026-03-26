@@ -10,6 +10,7 @@ class ofApp : public ofBaseApp{
 		void update();
 		void draw();
         void renderScene();
+        void renderSceneGeometry();
 
 		void keyPressed(int key);
         void resetScene();

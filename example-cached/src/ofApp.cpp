@@ -3,7 +3,7 @@
 //--------------------------------------------------------------
 void ofApp::setup() {
     // set up lightmapper and pass scene draw function
-    std::function<void()> scene = std::bind(&ofApp::renderScene, this);
+    std::function<void()> scene = std::bind(&ofApp::renderSceneGeometry, this);
     bool success = lightmapper.setup(scene, 12);
     if (success) ofLog() << "Lightmapper ready";
 
@@ -77,6 +77,18 @@ void ofApp::draw() {
     int mapsize = 300;
     lightmapper.getDepthTexture().draw(ofGetWidth()-mapsize,0, mapsize, mapsize);
     lightmapper.getDepthTexture(1).draw(ofGetWidth()-mapsize, mapsize, mapsize, mapsize);
+}
+
+//--------------------------------------------------------------
+void ofApp::renderSceneGeometry() {
+    // geometry-only pass for shadow map depth rendering - no material or textures
+    for (size_t i = 0; i < models.size(); i++) {
+        auto& model = *models[i];
+        auto& node = transformations.at(i);
+        node.transformGL();
+        model.draw();
+        node.restoreTransformGL();
+    }
 }
 
 //--------------------------------------------------------------
